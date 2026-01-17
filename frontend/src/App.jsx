@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-// import viteLogo from '/vite.svg'
+import viteLogo from '/vite.svg'
 import './App.css'
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react'
 
