@@ -1,26 +1,20 @@
-import { useState } from 'react'
-
-import viteLogo from '/vite.svg'
 import './App.css'
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react'
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
     <>
-     <h1>Welcome to the app</h1>
-     <signedOut>
+     <h1>Welcome to TalentIQ</h1>
+     <SignedOut>
       <SignInButton mode="modal">
-      <button>Login</button>
+        <button>Sign In</button>
       </SignInButton>
-     </signedOut>
+     </SignedOut>
 
      <SignedIn>
-      <SignOutButton />
+      <p>You are signed in!</p>
+      <UserButton />
      </SignedIn>
-
-     <UserButton />
     </>
   )
 }
