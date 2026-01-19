@@ -9,15 +9,15 @@ import { inngest, functions } from "./lib/inngest.js";
 const app = express();
 const __dirname = path.resolve();
 
-// --- 1. CONFIGURATION ---
-// Allow Vercel to handle CORS, or use this restrictive set
+// --- 1. MIDDLEWARE ---
+// Allow Vercel to handle CORS. The "*" helps debug "Network Error" issues.
 app.use(cors({
-    origin: ENV.CLIENT_URL || "*", // Fallback to * to prevent CORS errors during test
+    origin: ENV.CLIENT_URL || "*", 
     credentials: true,
 }));
 
-// --- 2. INNGEST (Must be BEFORE express.json) ---
-// Inngest needs the raw body to verify the signature
+// --- 2. INNGEST ROUTE (Must come BEFORE express.json) ---
+// Inngest needs to read the raw body signature.
 app.use(
     "/api/inngest",
     serve({
@@ -26,13 +26,17 @@ app.use(
     })
 );
 
-// --- 3. STANDARD MIDDLEWARE ---
+// --- 3. PARSE JSON (For everything else) ---
 app.use(express.json());
 
-// --- 4. ROUTES ---
+// --- 4. WEBHOOKS ---
 app.post("/api/webhooks/clerk", async (req, res) => {
     try {
         const { type, data } = req.body;
+        
+        // Log to Vercel logs so you can debug
+        console.log(`Received Webhook: ${type}`);
+
         if (type === "user.created") {
             await inngest.send({ name: "clerk/user.created", data });
         }
@@ -46,20 +50,21 @@ app.post("/api/webhooks/clerk", async (req, res) => {
     }
 });
 
+// --- 5. HEALTH CHECKS ---
 app.get("/health", (req, res) => {
     res.status(200).json({ msg: "api is running correctly" });
 });
 
-// --- 5. STARTUP (Only start ONCE) ---
+// --- 6. START SERVER (FIXED) ---
+// We only define this ONCE.
 const startServer = async () => {
     try {
         await connectDB();
         
-        // Only listen if we are NOT in Vercel (Vercel handles listening automatically)
-        // But for standard deployment, we leave this. 
-        // Just ensure it's the ONLY listen call.
-        app.listen(ENV.PORT || 3000, () => {
-            console.log("Server is running on port:", ENV.PORT || 3000);
+        // Only listen if we are running locally or if Vercel requires it explicitly
+        const PORT = ENV.PORT || 3000;
+        app.listen(PORT, () => {
+            console.log(`Server is running on port: ${PORT}`);
         });
     } catch (error) {
         console.error("Critical Failure:", error);
