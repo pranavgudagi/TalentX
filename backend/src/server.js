@@ -1,4 +1,3 @@
-import "dotenv/config";
 import express from "express";
 import { ENV } from "./lib/env.js";
 import path from "path";
@@ -10,14 +9,15 @@ import { inngest, functions } from "./lib/inngest.js";
 const app = express();
 const __dirname = path.resolve();
 
-// --- 1. CORS FIRST ---
+// --- 1. CONFIGURATION ---
+// Allow Vercel to handle CORS, or use this restrictive set
 app.use(cors({
-    origin: ENV.CLIENT_URL,
-    credentials: true
+    origin: ENV.CLIENT_URL || "*", // Fallback to * to prevent CORS errors during test
+    credentials: true,
 }));
 
-// --- 2. INNGEST MUST BE BEFORE express.json() ---
-// This allows Inngest to access the raw request body for signature verification
+// --- 2. INNGEST (Must be BEFORE express.json) ---
+// Inngest needs the raw body to verify the signature
 app.use(
     "/api/inngest",
     serve({
@@ -26,10 +26,10 @@ app.use(
     })
 );
 
-// --- 3. BODY PARSER (For all other routes) ---
+// --- 3. STANDARD MIDDLEWARE ---
 app.use(express.json());
 
-// --- 4. WEBHOOKS & ROUTES ---
+// --- 4. ROUTES ---
 app.post("/api/webhooks/clerk", async (req, res) => {
     try {
         const { type, data } = req.body;
@@ -50,26 +50,20 @@ app.get("/health", (req, res) => {
     res.status(200).json({ msg: "api is running correctly" });
 });
 
-app.get("/books", (req, res) => {
-    res.status(200).json({ msg: "this is the books endpoint" });
-});
-
-if (ENV.NODE_ENV === "production") {
-    app.use(express.static(path.join(__dirname, "../frontend/dist")));
-    app.get("*", (req, res) => {
-        res.sendFile(path.join(__dirname, "../frontend", "dist", "index.html"));
-    });
-} 
-
-// --- 5. START SERVER (ONLY ONCE) ---
+// --- 5. STARTUP (Only start ONCE) ---
 const startServer = async () => {
     try {
         await connectDB();
-        app.listen(ENV.PORT, () => {
-            console.log("Server is running on port:", ENV.PORT);
+        
+        // Only listen if we are NOT in Vercel (Vercel handles listening automatically)
+        // But for standard deployment, we leave this. 
+        // Just ensure it's the ONLY listen call.
+        app.listen(ENV.PORT || 3000, () => {
+            console.log("Server is running on port:", ENV.PORT || 3000);
         });
     } catch (error) {
-        console.error("Something went wrong", error);
+        console.error("Critical Failure:", error);
+        process.exit(1);
     }
 }
 
